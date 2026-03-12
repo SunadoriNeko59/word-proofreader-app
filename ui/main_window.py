@@ -6,6 +6,8 @@ import threading
 from core.docx_editor import DocxEditor
 from core.methods.rule_based import RuleBasedProofreader
 from core.methods.ai_server import AIServerProofreader
+from core.methods.openai_api import CustomAPIProofreader
+from ui.settings_window import SettingsWindow
 
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
@@ -27,12 +29,16 @@ class MainWindow(ctk.CTk):
         
         self.combo_method = ctk.CTkComboBox(
             self, 
-            values=["ルールベース", "AIサーバー"],
+            values=["ルールベース", "AIサーバー", "カスタムAI (URL指定)"],
             width=200,
             command=self.on_method_change
         )
         self.combo_method.grid(row=0, column=0, padx=(150, 20), pady=(20, 0), sticky="w")
         self.combo_method.set("ルールベース") # デフォルト値
+
+        # 設定ボタン
+        self.button_settings = ctk.CTkButton(self, text="設定 (カスタムAI)", command=self.open_settings, width=120)
+        self.button_settings.grid(row=0, column=0, padx=20, pady=(20, 0), sticky="e")
 
         # API URL/キー (手法によって切り替え)
         self.label_api_url = ctk.CTkLabel(self, text="AIサーバー URL:")
@@ -99,10 +105,17 @@ class MainWindow(ctk.CTk):
             self.entry_api_url.configure(state="normal")
             self.entry_rule_file_path.configure(state="disabled")
             self.button_rule_browse.configure(state="disabled")
-        else:
+        elif choice == "カスタムAI (URL指定)":
+            self.entry_api_url.configure(state="disabled")
+            self.entry_rule_file_path.configure(state="disabled")
+            self.button_rule_browse.configure(state="disabled")
+        else: # ルールベース
             self.entry_api_url.configure(state="disabled")
             self.entry_rule_file_path.configure(state="normal")
             self.button_rule_browse.configure(state="normal")
+
+    def open_settings(self):
+        SettingsWindow(self)
 
     def browse_rule_file(self):
         filename = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
@@ -159,6 +172,9 @@ class MainWindow(ctk.CTk):
             elif method_name == "AIサーバー":
                 self.log(f"AIサーバー ({api_url}) へリクエスト送信中...")
                 proofreader = AIServerProofreader(endpoint_url=api_url)
+            elif method_name == "カスタムAI (URL指定)":
+                self.log("カスタムAIへリクエスト送信中...")
+                proofreader = CustomAPIProofreader()
             else:
                 raise ValueError("不明な添削手法です。")
                 
