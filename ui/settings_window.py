@@ -21,31 +21,39 @@ class SettingsWindow(ctk.CTkToplevel):
         
         self.entry_ai_url = ctk.CTkEntry(self)
         self.entry_ai_url.grid(row=0, column=1, padx=(0, 20), pady=(20, 10), sticky="ew")
+
+        # API Key
+        self.label_api_key = ctk.CTkLabel(self, text="API キー:")
+        self.label_api_key.grid(row=1, column=0, padx=20, pady=10, sticky="e")
+        
+        self.entry_api_key = ctk.CTkEntry(self, show="*")
+        self.entry_api_key.grid(row=1, column=1, padx=(0, 20), pady=10, sticky="ew")
         
         # Model
         self.label_model = ctk.CTkLabel(self, text="使用モデル:")
-        self.label_model.grid(row=1, column=0, padx=20, pady=10, sticky="e")
+        self.label_model.grid(row=2, column=0, padx=20, pady=10, sticky="e")
         
         self.combo_model = ctk.CTkComboBox(self, values=["gpt-4o-mini", "gpt-4o"])
-        self.combo_model.grid(row=1, column=1, padx=(0, 20), pady=10, sticky="ew")
+        self.combo_model.grid(row=2, column=1, padx=(0, 20), pady=10, sticky="ew")
 
         # System Prompt
         self.label_prompt = ctk.CTkLabel(self, text="システムプロンプト:")
-        self.label_prompt.grid(row=2, column=0, padx=20, pady=10, sticky="ne")
+        self.label_prompt.grid(row=3, column=0, padx=20, pady=10, sticky="ne")
         
         self.textbox_prompt = ctk.CTkTextbox(self, height=150)
-        self.textbox_prompt.grid(row=2, column=1, padx=(0, 20), pady=10, sticky="nsew")
+        self.textbox_prompt.grid(row=3, column=1, padx=(0, 20), pady=10, sticky="nsew")
 
         # 現在の設定を読み込み
         self.load_settings()
 
         # Save Button
         self.button_save = ctk.CTkButton(self, text="保存", command=self.save_settings)
-        self.button_save.grid(row=3, column=0, columnspan=2, padx=20, pady=20)
+        self.button_save.grid(row=4, column=0, columnspan=2, padx=20, pady=20)
 
     def load_settings(self):
         """設定をUIに反映します。"""
         self.entry_ai_url.insert(0, config_manager.get("custom_ai_url", "http://127.0.0.1:8000/v1/chat/completions"))
+        self.entry_api_key.insert(0, config_manager.get("custom_ai_api_key", ""))
         self.combo_model.set(config_manager.get("openai_model", "gpt-4o-mini"))
         
         prompt = config_manager.get("system_prompt", "")
@@ -54,6 +62,7 @@ class SettingsWindow(ctk.CTkToplevel):
     def save_settings(self):
         """UIの入力内容を設定に保存します。"""
         config_manager.set("custom_ai_url", self.entry_ai_url.get())
+        config_manager.set("custom_ai_api_key", self.entry_api_key.get())
         config_manager.set("openai_model", self.combo_model.get())
         config_manager.set("system_prompt", self.textbox_prompt.get("0.0", "end").strip())
         

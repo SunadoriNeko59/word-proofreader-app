@@ -12,6 +12,7 @@ class CustomAPIProofreader(BaseProofreader):
     def __init__(self):
         super().__init__()
         self.endpoint_url = config_manager.get("custom_ai_url", "")
+        self.api_key = config_manager.get("custom_ai_api_key", "")
         self.model = config_manager.get("openai_model", "gpt-4o-mini")
         self.system_prompt = config_manager.get("system_prompt", "")
         
@@ -51,10 +52,14 @@ class CustomAPIProofreader(BaseProofreader):
 
         data = json.dumps(payload).encode('utf-8')
         
+        headers = {'Content-Type': 'application/json'}
+        if self.api_key:
+            headers['Authorization'] = f'Bearer {self.api_key}'
+
         req = urllib.request.Request(
             self.endpoint_url,
             data=data,
-            headers={'Content-Type': 'application/json'},
+            headers=headers,
             method='POST'
         )
 
