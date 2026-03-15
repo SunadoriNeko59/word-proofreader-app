@@ -5,7 +5,7 @@ class SettingsWindow(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         
-        self.title("設定 - 社内AI (カスタムエンドポイント)")
+        self.title("AI詳細設定 (社内サーバー)")
         self.geometry("500x400")
         
         # モーダルダイアログとして動作させる
@@ -33,7 +33,7 @@ class SettingsWindow(ctk.CTkToplevel):
         self.label_model = ctk.CTkLabel(self, text="使用モデル:")
         self.label_model.grid(row=2, column=0, padx=20, pady=10, sticky="e")
         
-        self.combo_model = ctk.CTkComboBox(self, values=["gpt-4o-mini", "gpt-4o"])
+        self.combo_model = ctk.CTkComboBox(self, values=["gpt-4o-mini", "gpt-4o", "local-model"])
         self.combo_model.grid(row=2, column=1, padx=(0, 20), pady=10, sticky="ew")
 
         # System Prompt

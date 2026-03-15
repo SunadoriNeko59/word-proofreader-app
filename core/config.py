@@ -9,7 +9,7 @@ class ConfigManager:
     """
     def __init__(self):
         self.config = {
-            "custom_ai_url": "http://127.0.0.1:8000/v1/chat/completions",
+            "custom_ai_url": "",
             "custom_ai_api_key": "",
             "openai_model": "gpt-4o-mini",
             "system_prompt": "あなたはプロの編集者・ライターです。提供された文章の誤字脱字、文法の誤り、不自然な表現を修正してください。修正箇所とその理由を簡潔に出力してください。"

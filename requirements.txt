@@ -3,3 +3,4 @@ lxml
 customtkinter
 python-dotenv
 openpyxl
+requests

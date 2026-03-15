@@ -3,10 +3,10 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 import os
 import threading
+import concurrent.futures
 from core.docx_editor import DocxEditor
 from core.methods.rule_based import RuleBasedProofreader
-from core.methods.ai_server import AIServerProofreader
-from core.methods.openai_api import CustomAPIProofreader
+from core.methods.custom_ai import CustomAIProofreader
 from ui.settings_window import SettingsWindow
 
 ctk.set_appearance_mode("System")
@@ -23,13 +23,15 @@ class MainWindow(ctk.CTk):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(4, weight=1)
 
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
         # 手法選択
         self.label_method = ctk.CTkLabel(self, text="添削手法:")
         self.label_method.grid(row=0, column=0, padx=20, pady=(20, 0), sticky="w")
         
         self.combo_method = ctk.CTkComboBox(
             self, 
-            values=["ルールベース", "AIサーバー", "カスタムAI (URL指定)"],
+            values=["ルールベース", "AI添削"],
             width=200,
             command=self.on_method_change
         )
@@ -37,23 +39,20 @@ class MainWindow(ctk.CTk):
         self.combo_method.set("ルールベース") # デフォルト値
 
         # 設定ボタン
-        self.button_settings = ctk.CTkButton(self, text="設定 (カスタムAI)", command=self.open_settings, width=120)
+        self.button_settings = ctk.CTkButton(self, text="AI詳細設定", command=self.open_settings, width=120)
         self.button_settings.grid(row=0, column=0, padx=20, pady=(20, 0), sticky="e")
 
-        # API URL/キー (手法によって切り替え)
-        self.label_api_url = ctk.CTkLabel(self, text="AIサーバー URL:")
+        # API URL (AI添削時のみ表示)
+        self.label_api_url = ctk.CTkLabel(self, text="AIエンドポイント URL:")
         self.label_api_url.grid(row=1, column=0, padx=20, pady=(10, 0), sticky="w")
         
-        self.entry_api_url = ctk.CTkEntry(self, placeholder_text="http://localhost:5000/api/proofread", width=400)
+        self.entry_api_url = ctk.CTkEntry(self, placeholder_text="http://localhost:1234/v1/chat/completions", width=400)
         self.entry_api_url.grid(row=2, column=0, padx=20, pady=(0, 10), sticky="ew")
         
-        # 初期状態ではAIサーバーURLを無効化
-        self.entry_api_url.configure(state="disabled")
-
-        # 環境変数から初期値取得 (AI_SERVER_URL があれば設定)
-        env_url = os.getenv("AI_SERVER_URL", "")
-        if env_url:
-            self.entry_api_url.insert(0, env_url)
+        from core.config import config_manager
+        current_url = config_manager.get("custom_ai_url", "")
+        if current_url:
+            self.entry_api_url.insert(0, current_url)
 
         # Excelルールファイル選択 (ルールベース用)
         self.label_rule_file = ctk.CTkLabel(self, text="ルール定義Excelファイル:")
@@ -101,12 +100,8 @@ class MainWindow(ctk.CTk):
 
     def on_method_change(self, choice):
         """添削手法が変更されたときの処理"""
-        if choice == "AIサーバー":
+        if choice == "AI添削":
             self.entry_api_url.configure(state="normal")
-            self.entry_rule_file_path.configure(state="disabled")
-            self.button_rule_browse.configure(state="disabled")
-        elif choice == "カスタムAI (URL指定)":
-            self.entry_api_url.configure(state="disabled")
             self.entry_rule_file_path.configure(state="disabled")
             self.button_rule_browse.configure(state="disabled")
         else: # ルールベース
@@ -141,9 +136,13 @@ class MainWindow(ctk.CTk):
         file_path = self.entry_file_path.get()
         rule_path = self.entry_rule_file_path.get()
 
-        if method_name == "AIサーバー" and not api_url:
-            messagebox.showerror("エラー", "AIサーバーのURLを入力してください。")
-            return
+        if method_name == "AI添削":
+            if not api_url:
+                messagebox.showerror("エラー", "AIエンドポイントURLを入力してください。")
+                return
+            # 入力されたURLを設定に反映
+            from core.config import config_manager
+            config_manager.set("custom_ai_url", api_url)
         if method_name == "ルールベース" and (not rule_path or not os.path.exists(rule_path)):
             messagebox.showerror("エラー", "有効なルール定義Excelファイルを選択してください。")
             return
@@ -154,8 +153,8 @@ class MainWindow(ctk.CTk):
         self.button_run.configure(state="disabled")
         self.progressbar.set(0.1)
         
-        thread = threading.Thread(target=self.process_file, args=(method_name, api_url, rule_path, file_path))
-        thread.start()
+        # スレッドを直接立てるのではなく Executor で実行
+        self.executor.submit(self.process_file, method_name, api_url, rule_path, file_path)
 
     def process_file(self, method_name, api_url, rule_path, file_path):
         try:
@@ -169,12 +168,9 @@ class MainWindow(ctk.CTk):
             if method_name == "ルールベース":
                 self.log(f"ルールベースの添削を実行中... ({os.path.basename(rule_path)})")
                 proofreader = RuleBasedProofreader(excel_path=rule_path)
-            elif method_name == "AIサーバー":
-                self.log(f"AIサーバー ({api_url}) へリクエスト送信中...")
-                proofreader = AIServerProofreader(endpoint_url=api_url)
-            elif method_name == "カスタムAI (URL指定)":
-                self.log("カスタムAIへリクエスト送信中...")
-                proofreader = CustomAPIProofreader()
+            elif method_name == "AI添削":
+                self.log(f"AI添削を実行中... (URL: {api_url})")
+                proofreader = CustomAIProofreader()
             else:
                 raise ValueError("不明な添削手法です。")
                 
@@ -199,7 +195,7 @@ class MainWindow(ctk.CTk):
             messagebox.showerror("エラー", f"処理中にエラーが発生しました:\n{str(e)}")
         
         finally:
-            self.button_run.configure(state="normal")
+            self.after(0, lambda: self.button_run.configure(state="normal"))
 
 if __name__ == "__main__":
     app = MainWindow()
